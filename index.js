@@ -17,7 +17,7 @@ let middleware = function (folder) {
     files.forEach(function (file, i) {
         const router = require(path.join(routerFoler, file));
         // 添加所有子路由
-        rootRouter.use(router.rootPath, middleware.excuteFiters(router.rules), router.routes(), router.allowedMethods())
+        rootRouter.use(router.rootPath, middleware.excuteFiters(router.rules), router.routes(), router.allowedMethods());
     });
 
     return async function (ctx, next) {
@@ -49,19 +49,21 @@ middleware.excuteFiters = function (rules) {
     return async function (ctx, next) {
         for (let ruleId of rules) {
             // 如果传递的数组元素是一个函数则为自定义过滤器
-            const ruleHandler = typeof ruleId==='function'?ruleId:(function(){
+            const ruleHandler = typeof ruleId === 'function' ? ruleId : (function () {
                 const rule = _rules[ruleId];
-                return rule && rule.handler;
+                if (!rule) return null;
+                if (typeof rule === 'function') return rule;
+                return rule.handler;
             })();
             // 当前过滤器不存在则继续下一个
-            if(!ruleHandler){
+            if (!ruleHandler) {
                 continue;
             }
             const rs = await ruleHandler(ctx);
             // 如果过滤器返回false则return，所有中间件处理结束
             if (rs === false) {
                 return;
-            }else if(rs === null){// 如果返回null则中断，不继续后面的过滤器
+            } else if (rs === null) {// 如果返回null则中断，不继续后面的过滤器
                 break;
             }
         }
@@ -76,8 +78,27 @@ middleware.excuteFiters = function (rules) {
   */
 middleware.create = function (rootPath, rules) {
     let router = koaRouter();
-    router.rootPath = rootPath;
+    router.rootPath = rootPath || '/';
     router.rules = rules || [];
+    router.add = function (...childs) {
+        childs.forEach(function (child) {
+            if (typeof child === 'string') {
+                // 如果是字符串则认为是文件夹目录，切遍历下面的所有js文件
+                const routerFoler = child;
+                const files = glob.sync('**/*.js', { cwd: routerFoler });
+                files.forEach(function (file, i) {
+                    const childRouter = require(path.join(routerFoler, file));
+                    // 添加所有子路由
+                    router.use(childRouter.rootPath, middleware.excuteFiters(childRouter.rules), childRouter.routes());
+                });
+            } else {
+                // 否则认为是子路由，直接添加
+                router.use(child.rootPath, middleware.excuteFiters(child.rules), child.routes());
+            }
+        });
+
+        return router;
+    };
     return router;
 };
 

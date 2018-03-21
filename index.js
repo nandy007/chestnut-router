@@ -11,14 +11,24 @@ const rootRouter = koaRouter();
   */
 let middleware = function (folder) {
 
-    const routerFoler = folder;
-    // 遍历路由文件夹下的所有js文件
-    const files = glob.sync('**/*.js', { cwd: routerFoler });
-    files.forEach(function (file, i) {
-        const router = require(path.join(routerFoler, file));
-        // 添加所有子路由
-        rootRouter.use(router.rootPath, middleware.excuteFiters(router.rules), router.routes(), router.allowedMethods());
-    });
+    if(typeof folder==='function'){
+        const routers = folder();
+        console.log(routers);
+        routers.forEach(function(router){
+            rootRouter.use(router.rootPath, middleware.excuteFiters(router.rules), router.routes(), router.allowedMethods());
+        });
+    }else{
+        const routerFoler = folder;
+        // 遍历路由文件夹下的所有js文件
+        const files = glob.sync('**/*.js', { cwd: routerFoler });
+        files.forEach(function (file, i) {
+            const router = require(path.join(routerFoler, file));
+            // 添加所有子路由
+            rootRouter.use(router.rootPath, middleware.excuteFiters(router.rules), router.routes(), router.allowedMethods());
+        });
+    }
+
+    
 
     return async function (ctx, next) {
         // 将自路由添加到主路由中

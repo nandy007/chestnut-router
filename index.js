@@ -2,18 +2,18 @@
 const path = require('path');
 const glob = require('glob');
 const koaRouter = require('koa-router');
-const rootRouter = koaRouter();
 
 /**
   * 路由处理函数
-  * @param  {String}      folder         [router路由文件夹]
+  * @param  {String}      folder         [router路由文件夹或者回调函数]
   * @return {Function}  为Koa中间件函数格式
   */
 let middleware = function (folder) {
 
+    const rootRouter = koaRouter();
+
     if(typeof folder==='function'){
         const routers = folder();
-        console.log(routers);
         routers.forEach(function(router){
             rootRouter.use(router.rootPath, middleware.excuteFiters(router.rules), router.routes(), router.allowedMethods());
         });
@@ -29,13 +29,15 @@ let middleware = function (folder) {
     }
 
     
+    var preRouter, rsRouter;
+    if(_rules['pre']){
+        preRouter = _rules['pre'](rootRouter);
+        rsRouter = preRouter;
+    }else{
+        rsRouter = rootRouter;
+    }
 
-    return async function (ctx, next) {
-        // 将自路由添加到主路由中
-        await rootRouter.routes()(ctx, function () {
-            rootRouter.allowedMethods()(ctx, next);
-        });
-    };
+    return rsRouter.routes();
 };
 
 let _rules = {};// 缓存过滤器规则
@@ -56,6 +58,8 @@ middleware.addFilters = function (rules) {
   * @param  {Array}      rules         [过滤器数组]
   */
 middleware.excuteFiters = function (rules) {
+    rules = (rules || []).slice(0);
+    if(_rules['default']) rules.push(_rules['default']);
     return async function (ctx, next) {
         for (let ruleId of rules) {
             // 如果传递的数组元素是一个函数则为自定义过滤器

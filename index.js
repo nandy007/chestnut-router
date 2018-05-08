@@ -92,7 +92,7 @@ middleware.excuteFiters = function (rules) {
   */
 middleware.create = function (rootPath, rules) {
     let router = koaRouter();
-    router.rootPath = rootPath || '/';
+    router.rootPath = typeof rootPath === 'string' ? rootPath : '/';
     router.rules = rules || [];
     router.add = function (...childs) {
         childs.forEach(function (child) {

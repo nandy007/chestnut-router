@@ -6,9 +6,10 @@ const koaRouter = require('koa-router');
 /**
   * 路由处理函数
   * @param  {String}      folder         [router路由文件夹或者回调函数]
+  * @param  {String}      projectPath    [应用访问路径]
   * @return {Function}  为Koa中间件函数格式
   */
-let middleware = function (folder) {
+ let middleware = function (folder, projectPath) {
 
     const rootRouter = koaRouter();
 
@@ -29,12 +30,18 @@ let middleware = function (folder) {
     }
 
     
-    var preRouter, rsRouter;
+    let preRouter, rsRouter;
     if(_rules['pre']){
         preRouter = _rules['pre'](rootRouter);
         rsRouter = preRouter;
     }else{
         rsRouter = rootRouter;
+    }
+
+    if(projectPath){
+        const projectRouter = koaRouter();
+        projectRouter.use(projectPath, rsRouter.routes(), rsRouter.allowedMethods());
+        return projectRouter.routes();
     }
 
     return rsRouter.routes();
